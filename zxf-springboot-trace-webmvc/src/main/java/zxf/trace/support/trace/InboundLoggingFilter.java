@@ -6,13 +6,19 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingRequestWrapper;
 import org.springframework.web.util.ContentCachingResponseWrapper;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -29,119 +35,72 @@ public class InboundLoggingFilter extends OncePerRequestFilter {
         ContentCachingRequestWrapper requestWrapper = new ContentCachingRequestWrapper(request);
         ContentCachingResponseWrapper responseWrapper = new ContentCachingResponseWrapper(response);
 
-        // 记录请求日志
-        logRequest(requestWrapper);
-
         try {
             // 执行过滤链
             filterChain.doFilter(requestWrapper, responseWrapper);
         } finally {
-            // 记录响应日志
-            logResponse(requestWrapper, responseWrapper);
+            // 根据响应状态码记录请求和响应日志
+            logRequestAndResponse(requestWrapper, responseWrapper);
             // 复制响应内容到原始响应
             responseWrapper.copyBodyToResponse();
         }
     }
 
-    private void logRequest(ContentCachingRequestWrapper request) {
-        // 根据响应状态码决定日志级别，但在请求阶段我们还不知道响应状态码
-        // 所以先使用DEBUG级别，后续在logResponse中根据状态码调整
-        if (log.isDebugEnabled()) {
-            log.debug("=================================================Request begin(Inbound)=================================================");
-            log.debug("URI             : {}", request.getRequestURI());
-            log.debug("Methed          : {}", request.getMethod());
-            log.debug("Headers         : {}", Collections.list(request.getHeaderNames()).stream()
-                    .map(headerName -> String.format("%s:\"%s\"", headerName, request.getHeader(headerName)))
-                    .collect(Collectors.toList()));
+    private void logRequestAndResponse(ContentCachingRequestWrapper request, ContentCachingResponseWrapper response) {
+        int status = response.getStatus();
+        boolean isError = status != HttpStatus.OK.value();
 
-            // 获取请求体
-            String requestBody = "";
-            try {
-                requestBody = new String(request.getContentAsByteArray(), request.getCharacterEncoding());
-                if (!requestBody.isEmpty()) {
-                    // 处理敏感数据
-                    requestBody = sensitiveDataMasker.maskSensitiveData(requestBody);
-                }
-            } catch (IOException e) {
-                log.error("Failed to read request body", e);
+        // 定义日志记录函数
+        BiConsumer<Logger, String> logger = (log, message) -> {
+            if (isError) {
+                log.error(message);
+            } else if (log.isDebugEnabled()) {
+                log.debug(message);
             }
-            log.debug("Request Body    : {}", requestBody);
-            log.debug("=================================================Request end(Inbound)=================================================");
-        }
+        };
+
+        // 定义日志内容生成函数
+        Supplier<String> requestLog = () -> String.join("\n",
+                "=================================================Request begin(Inbound)=================================================",
+                String.format("URI             : %s", request.getRequestURI()),
+                String.format("Method          : %s", request.getMethod()),  // 修正拼写错误
+                String.format("Headers         : %s", formatHeaders(Collections.list(request.getHeaderNames()),
+                        headerName -> request.getHeader(headerName))),
+                String.format("Request Body    : %s", readAndMaskContent(request.getContentAsByteArray(),
+                        request.getCharacterEncoding())),
+                "=================================================Request end(Inbound)================================================="
+        );
+
+        Supplier<String> responseLog = () -> String.join("\n",
+                "=================================================Response begin(Inbound)=================================================",
+                String.format("Status code     : %d", status),
+                String.format("Headers         : %s", formatHeaders(response.getHeaderNames(),
+                        response::getHeader)),
+                String.format("Response Body   : %s", readAndMaskContent(response.getContentAsByteArray(),
+                        response.getCharacterEncoding())),
+                "=================================================Response end(Inbound)================================================="
+        );
+
+        // 执行日志记录
+        logger.accept(log, requestLog.get());
+        logger.accept(log, responseLog.get());
     }
 
-    private void logResponse(ContentCachingRequestWrapper request, ContentCachingResponseWrapper response) {
-        int status = response.getStatus();
-        // 根据状态码决定日志级别
-        boolean isError = status != 200;
+    // 辅助方法：格式化头部信息
+    private String formatHeaders(Collection<String> headerNames, Function<String, String> headerValueProvider) {
+        return headerNames.stream()
+                .map(headerName -> String.format("%s:\"%s\"", headerName, headerValueProvider.apply(headerName)))
+                .collect(Collectors.joining(", ", "[", "]"));
+    }
 
-        // 如果是错误状态码，使用ERROR级别，否则使用DEBUG级别
-        if (isError) {
-            // 如果之前使用DEBUG级别记录了请求，现在需要用ERROR级别重新记录
-            log.error("=================================================Request begin(Inbound)=================================================");
-            log.error("URI             : {}", request.getRequestURI());
-            log.error("Methed          : {}", request.getMethod());
-            log.error("Headers         : {}", Collections.list(request.getHeaderNames()).stream()
-                    .map(headerName -> String.format("%s:\"%s\"", headerName, request.getHeader(headerName)))
-                    .collect(Collectors.toList()));
-
-            // 获取请求体
-            String requestBody = "";
-            try {
-                requestBody = new String(request.getContentAsByteArray(), request.getCharacterEncoding());
-                if (!requestBody.isEmpty()) {
-                    // 处理敏感数据
-                    requestBody = sensitiveDataMasker.maskSensitiveData(requestBody);
-                }
-            } catch (IOException e) {
-                log.error("Failed to read request body", e);
-            }
-            log.error("Request Body    : {}", requestBody);
-            log.error("=================================================Request end(Inbound)=================================================");
-
-            // 记录响应
-            log.error("=================================================Response begin(Inbound)=================================================");
-            log.error("Status code     : {}", status);
-            log.error("Status text     : {}", response.getStatus());
-            log.error("Headers         : {}", response.getHeaderNames().stream()
-                    .map(headerName -> String.format("%s:\"%s\"", headerName, response.getHeader(headerName)))
-                    .collect(Collectors.toList()));
-
-            // 获取响应体
-            String responseBody = "";
-            try {
-                responseBody = new String(response.getContentAsByteArray(), response.getCharacterEncoding());
-                if (!responseBody.isEmpty()) {
-                    // 处理敏感数据
-                    responseBody = sensitiveDataMasker.maskSensitiveData(responseBody);
-                }
-            } catch (IOException e) {
-                log.error("Failed to read response body", e);
-            }
-            log.error("Response Body   : {}", responseBody);
-            log.error("=================================================Response end(Inbound)=================================================");
-        } else if (log.isDebugEnabled()) {
-            // 使用DEBUG级别记录响应
-            log.debug("=================================================Response begin(Inbound)=================================================");
-            log.debug("Status code     : {}", status);
-            log.debug("Status text     : {}", response.getStatus());
-            log.debug("Headers         : {}", response.getHeaderNames().stream()
-                    .map(headerName -> String.format("%s:\"%s\"", headerName, response.getHeader(headerName)))
-                    .collect(Collectors.toList()));
-
-            // 获取响应体
-            String responseBody = "";
-            try {
-                responseBody = new String(response.getContentAsByteArray(), response.getCharacterEncoding());
-                if (!responseBody.isEmpty()) {
-                    // 处理敏感数据
-                    responseBody = sensitiveDataMasker.maskSensitiveData(responseBody);
-                }
-            } catch (IOException e) {
-                log.error("Failed to read response body", e);
-            }
-            log.debug("Response Body   : {}", responseBody);
-            log.debug("=================================================Response end(Inbound)=================================================");
+    // 辅助方法：读取并掩码内容
+    private String readAndMaskContent(byte[] content, String encoding) {
+        try {
+            String contentStr = new String(content, encoding);
+            return contentStr.isEmpty() ? "" : sensitiveDataMasker.maskSensitiveData(contentStr);
+        } catch (IOException e) {
+            log.error("Failed to read content", e);
+            return "";
         }
     }
 }

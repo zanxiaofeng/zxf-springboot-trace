@@ -17,7 +17,7 @@
 - 子模块必须实现一个Rest endpoint /http/calling，在其中通过http 请求从http://localhost:8089/pa/a/json获取数据并返回
 - 子模块必须以如下规则和格式记录所有inbound以及outbound的日志
 - 规则1： 如果响应 http status code 不是200, 则响应日志的level为ERROR否则日志的Level为Debug
-- 规则2： 请求日志的level需要和与之对应的响应的日志的Level一致
+- 规则2： 请求日志要参考响应的http status code，日志level需要和与之对应的响应的日志的Level一致
 - 规则3： 对于请求和相应的Body，需要使用基于Json的敏感数据处理的Java库对其进行处理，要处理的Json敏感字段列表可以通过配置定义
 - 日志格式1: Inbound Request
 - 2025-04-27 07:57:06.799 DEBUG 74030 --- [           main] z.s.p.c.http.LoggingRequestInterceptor   : =================================================Request begin(Inbound)=================================================
