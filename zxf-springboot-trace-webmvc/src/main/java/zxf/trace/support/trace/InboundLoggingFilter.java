@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -47,43 +48,24 @@ public class InboundLoggingFilter extends OncePerRequestFilter {
     }
 
     private void logRequestAndResponse(ContentCachingRequestWrapper request, ContentCachingResponseWrapper response) {
-        int status = response.getStatus();
-        boolean isError = status != HttpStatus.OK.value();
-
         // 定义日志记录函数
-        BiConsumer<Logger, String> logger = (log, message) -> {
-            if (isError) {
-                log.error(message);
-            } else if (log.isDebugEnabled()) {
-                log.debug(message);
-            }
-        };
+        Consumer<String> logger = response.getStatus() != HttpStatus.OK.value() ? log::error : log::info;
 
-        // 定义日志内容生成函数
-        Supplier<String> requestLog = () -> String.join("\n",
-                "=================================================Request begin(Inbound)=================================================",
-                String.format("URI             : %s", request.getRequestURI()),
-                String.format("Method          : %s", request.getMethod()),  // 修正拼写错误
-                String.format("Headers         : %s", formatHeaders(Collections.list(request.getHeaderNames()),
-                        headerName -> request.getHeader(headerName))),
-                String.format("Request Body    : %s", readAndMaskContent(request.getContentAsByteArray(),
-                        request.getCharacterEncoding())),
-                "=================================================Request end(Inbound)================================================="
-        );
+        logger.accept("=================================================Request begin(Inbound)=================================================");
+        logger.accept(String.format("URI             : %s", request.getRequestURI()));
+        logger.accept(String.format("Method          : %s", request.getMethod()));
+        logger.accept(String.format("Headers         : %s", formatHeaders(Collections.list(request.getHeaderNames()), headerName -> request.getHeader(headerName))));
+        logger.accept(String.format("Request Body    : %s", readAndMaskContent(request.getContentAsByteArray(), request.getCharacterEncoding())));
+        logger.accept("=================================================Request end(Inbound)=================================================");
 
-        Supplier<String> responseLog = () -> String.join("\n",
-                "=================================================Response begin(Inbound)=================================================",
-                String.format("Status code     : %d", status),
-                String.format("Headers         : %s", formatHeaders(response.getHeaderNames(),
-                        response::getHeader)),
-                String.format("Response Body   : %s", readAndMaskContent(response.getContentAsByteArray(),
-                        response.getCharacterEncoding())),
-                "=================================================Response end(Inbound)================================================="
-        );
 
-        // 执行日志记录
-        logger.accept(log, requestLog.get());
-        logger.accept(log, responseLog.get());
+        logger.accept("=================================================Response begin(Outbound)=================================================");
+        logger.accept(String.format("Status code     : %d", response.getStatus()));
+        logger.accept(String.format("Headers         : %s", formatHeaders(response.getHeaderNames(),
+                response::getHeader)));
+        logger.accept(String.format("Response Body   : %s", readAndMaskContent(response.getContentAsByteArray(),
+                response.getCharacterEncoding())));
+        logger.accept("=================================================Response end(Outbound)=================================================");
     }
 
     // 辅助方法：格式化头部信息
