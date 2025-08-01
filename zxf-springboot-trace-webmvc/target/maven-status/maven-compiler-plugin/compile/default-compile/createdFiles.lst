@@ -1,6 +1,6 @@
 zxf/trace/app/control/TestController.class
 zxf/trace/support/trace/TraceConfiguration.class
-zxf/trace/support/trace/SensitiveDataMasker.class
 zxf/trace/support/trace/InboundLoggingFilter.class
 zxf/trace/TraceApplication.class
 zxf/trace/support/trace/OutboundLoggingInterceptor.class
+zxf/trace/support/trace/SensitiveDataHelper.class

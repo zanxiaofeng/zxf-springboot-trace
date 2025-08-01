@@ -9,6 +9,12 @@ import org.springframework.web.client.RestTemplate;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * 测试控制器
+ * 
+ * 提供用于测试入站和出站请求日志记录功能的API端点。
+ * 包含成功响应测试、错误响应测试和出站请求测试三个端点。
+ */
 @Slf4j
 @RestController
 @RequestMapping("/api")
@@ -18,59 +24,36 @@ public class TestController {
     private final RestTemplate restTemplate;
 
     /**
-     * 测试入站请求日志
-     *
-     * @param name 名称参数
-     * @return 响应
+     * 成功响应测试端点
+     * 
+     * 返回200 OK响应，包含请求参数和一些测试数据。
+     * 响应中包含敏感数据，用于测试敏感数据掩码功能。
+     * 
+     * @param task 任务名称参数
+     * @return 包含测试数据的成功响应
      */
-    @GetMapping("/hello")
-    public ResponseEntity<Map<String, Object>> hello(@RequestParam(defaultValue = "World") String name) {
-        log.info("Processing hello request for name: {}", name);
-        
+    @GetMapping("/ok-test")
+    public ResponseEntity<Map<String, Object>> okTest(@RequestParam String task) {
+        log.info("Processing ok test request for task: {}", task);
+
         Map<String, Object> response = new HashMap<>();
-        response.put("message", "Hello, " + name + "!");
+        response.put("task", task);
+        response.put("data", Map.of("id", 1, "name", "test", "token", "this is a sensitive data"));
         response.put("timestamp", System.currentTimeMillis());
-        
-        return ResponseEntity.ok(response);
+
+        return ResponseEntity.ok()
+                .header("Task", task)
+                .header("Authorization", "this is a sensitive data")
+                .body(response);
     }
 
     /**
-     * 测试入站请求日志（POST方法）
-     *
-     * @param request 请求体
-     * @return 响应
-     */
-    @PostMapping("/echo")
-    public ResponseEntity<Map<String, Object>> echo(@RequestBody Map<String, Object> request) {
-        log.info("Processing echo request: {}", request);
-        
-        Map<String, Object> response = new HashMap<>(request);
-        response.put("timestamp", System.currentTimeMillis());
-        response.put("echoed", true);
-        
-        return ResponseEntity.ok(response);
-    }
-
-    /**
-     * 测试出站请求日志
-     *
-     * @return 响应
-     */
-    @GetMapping("/outbound-test")
-    public ResponseEntity<Object> outboundTest() {
-        log.info("Processing outbound test request");
-        
-        // 使用RestTemplate发起出站请求
-        ResponseEntity<Object> response = restTemplate.getForEntity(
-                "https://jsonplaceholder.typicode.com/posts/1", Object.class);
-        
-        return ResponseEntity.ok(response.getBody());
-    }
-
-    /**
-     * 测试错误响应
-     *
-     * @return 错误响应
+     * 错误响应测试端点
+     * 
+     * 返回400 Bad Request响应，包含错误信息。
+     * 用于测试错误响应的日志记录功能。
+     * 
+     * @return 包含错误信息的400响应
      */
     @GetMapping("/error-test")
     public ResponseEntity<Map<String, Object>> errorTest() {
@@ -81,5 +64,24 @@ public class TestController {
         response.put("timestamp", System.currentTimeMillis());
 
         return ResponseEntity.badRequest().body(response);
+    }
+
+    /**
+     * 出站请求测试端点
+     * 
+     * 接收请求体并使用RestTemplate向外部API发送POST请求。
+     * 用于测试出站请求的日志记录功能。
+     * 
+     * @param request 请求体，将被转发到外部API
+     * @return 外部API的响应
+     */
+    @PostMapping("/outbound-test")
+    public ResponseEntity<Object> outboundTest(@RequestBody Map<String, Object> request) {
+        log.info("Processing outbound test request");
+
+        // 使用RestTemplate发起出站请求
+        ResponseEntity<Object> response = restTemplate.postForEntity("https://jsonplaceholder.typicode.com/posts", request, Object.class);
+
+        return ResponseEntity.ok(response.getBody());
     }
 }

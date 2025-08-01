@@ -1,0 +1,8 @@
+zxf/trace/support/trace/inbound/LoggingResponseDecorator.class
+zxf/trace/app/control/TestController.class
+zxf/trace/support/trace/inbound/LoggingRequestDecorator.class
+zxf/trace/support/trace/TraceConfiguration.class
+zxf/trace/support/trace/inbound/InboundLoggingFilter.class
+zxf/trace/TraceApplication.class
+zxf/trace/support/trace/SensitiveDataHelper.class
+zxf/trace/support/trace/inbound/LoggingWebExchange.class

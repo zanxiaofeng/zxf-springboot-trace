@@ -16,8 +16,6 @@ public class TraceConfiguration {
      */
     @Bean
     public RestTemplate restTemplate(OutboundLoggingInterceptor outboundLoggingInterceptor) {
-        return new RestTemplateBuilder()
-                .interceptors(outboundLoggingInterceptor)
-                .build();
+        return new RestTemplateBuilder().interceptors(outboundLoggingInterceptor).build();
     }
 }
