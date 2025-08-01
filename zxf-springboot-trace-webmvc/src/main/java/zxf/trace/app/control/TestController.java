@@ -11,7 +11,7 @@ import java.util.Map;
 
 /**
  * 测试控制器
- * 
+ * <p>
  * 提供用于测试入站和出站请求日志记录功能的API端点。
  * 包含成功响应测试、错误响应测试和出站请求测试三个端点。
  */
@@ -25,10 +25,10 @@ public class TestController {
 
     /**
      * 成功响应测试端点
-     * 
+     * <p>
      * 返回200 OK响应，包含请求参数和一些测试数据。
      * 响应中包含敏感数据，用于测试敏感数据掩码功能。
-     * 
+     *
      * @param task 任务名称参数
      * @return 包含测试数据的成功响应
      */
@@ -49,10 +49,10 @@ public class TestController {
 
     /**
      * 错误响应测试端点
-     * 
+     * <p>
      * 返回400 Bad Request响应，包含错误信息。
      * 用于测试错误响应的日志记录功能。
-     * 
+     *
      * @return 包含错误信息的400响应
      */
     @GetMapping("/error-test")
@@ -66,12 +66,18 @@ public class TestController {
         return ResponseEntity.badRequest().body(response);
     }
 
+    @GetMapping("/exception-test")
+    public ResponseEntity<Map<String, Object>> exceptionTest() {
+        log.info("Processing exception test request");
+        throw new RuntimeException("This is a test exception");
+    }
+
     /**
      * 出站请求测试端点
-     * 
+     * <p>
      * 接收请求体并使用RestTemplate向外部API发送POST请求。
      * 用于测试出站请求的日志记录功能。
-     * 
+     *
      * @param request 请求体，将被转发到外部API
      * @return 外部API的响应
      */
@@ -80,8 +86,8 @@ public class TestController {
         log.info("Processing outbound test request");
 
         // 使用RestTemplate发起出站请求
-        ResponseEntity<Object> response = restTemplate.postForEntity("https://jsonplaceholder.typicode.com/posts", request, Object.class);
+        Object response = restTemplate.postForObject("https://jsonplaceholder.typicode.com/posts", request, Object.class);
 
-        return ResponseEntity.ok(response.getBody());
+        return ResponseEntity.ok(response);
     }
 }
