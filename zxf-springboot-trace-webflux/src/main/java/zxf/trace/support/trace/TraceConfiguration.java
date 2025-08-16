@@ -3,14 +3,14 @@ package zxf.trace.support.trace;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.function.client.WebClient;
+import zxf.trace.support.trace.outbound.OutboundExchangeFilter;
 
 @Configuration
 public class TraceConfiguration {
 
     @Bean
-    public WebClient.Builder webClientBuilder() {
-        return WebClient.builder();
-                //.filter(outboundExchangeFilter);
+    public WebClient.Builder webClientBuilder(OutboundExchangeFilter outboundExchangeFilter) {
+        return WebClient.builder().filter(outboundExchangeFilter);
     }
 
     /**

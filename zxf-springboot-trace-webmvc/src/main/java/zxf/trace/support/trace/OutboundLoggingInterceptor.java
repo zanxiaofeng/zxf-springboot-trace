@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRequest;
+import org.springframework.http.MediaType;
 import org.springframework.http.client.ClientHttpRequestExecution;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.ClientHttpResponse;
@@ -73,14 +74,14 @@ public class OutboundLoggingInterceptor implements ClientHttpRequestInterceptor 
         logger.accept("URI             : " + request.getURI());
         logger.accept("Methed          : " + request.getMethod());
         logger.accept("Headers         : " + formatHeaders(request.getHeaders()));
-        logger.accept("Request Body    : " + readAndMaskContent(body, StandardCharsets.UTF_8));
+        logger.accept("Request Body    : " + readAndMaskContent(request.getHeaders().getContentType(), body, StandardCharsets.UTF_8));
         logger.accept("=================================================Request end(Outbound)=================================================");
 
         if (response != null) {
             logger.accept("=================================================Response begin(Inbound)=================================================");
             logger.accept("Status code     : " + response.getStatusCode().value());
             logger.accept("Headers         : " + formatHeaders(response.getHeaders()));
-            logger.accept("Response Body   : " + readAndMaskContent(StreamUtils.copyToByteArray(response.getBody()), StandardCharsets.UTF_8));
+            logger.accept("Response Body   : " + readAndMaskContent(response.getHeaders().getContentType(), StreamUtils.copyToByteArray(response.getBody()), StandardCharsets.UTF_8));
             logger.accept("=================================================Response end(Inbound)=================================================");
         }
     }
@@ -111,13 +112,16 @@ public class OutboundLoggingInterceptor implements ClientHttpRequestInterceptor 
      * @param charset 字符编码
      * @return 掩码处理后的内容字符串
      */
-    private String readAndMaskContent(byte[] content, Charset charset) {
+    private String readAndMaskContent(MediaType mediaType, byte[] content, Charset charset) {
         try {
             String contentStr = new String(content, charset);
-            return contentStr.isEmpty() ? "" : sensitiveDataHelper.maskSensitiveDataFromJson(contentStr);
+            if (contentStr.isEmpty() || !MediaType.APPLICATION_JSON.isCompatibleWith(mediaType)) {
+                return contentStr;
+            }
+            return sensitiveDataHelper.maskSensitiveDataFromJson(contentStr);
         } catch (Exception ex) {
             log.error("Exception when read content", ex);
-            return "";
+            return "Content read error";
         }
     }
 }

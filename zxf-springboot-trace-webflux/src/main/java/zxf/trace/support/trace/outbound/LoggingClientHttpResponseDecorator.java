@@ -11,20 +11,31 @@ import java.nio.channels.Channels;
 
 public class LoggingClientHttpResponseDecorator extends ClientHttpResponseDecorator {
     private String bodyString;
+    private final ResponseCapture bodyCapture;  // Changed from RequestCapture to ResponseCapture
 
-    public LoggingClientHttpResponseDecorator(ClientHttpResponse delegate) {
+    // Updated constructor to accept ResponseCapture
+    public LoggingClientHttpResponseDecorator(ClientHttpResponse delegate, ResponseCapture bodyCapture) {
         super(delegate);
+        this.bodyCapture = bodyCapture;
     }
 
+    @Override
     public Flux<DataBuffer> getBody() {
         return super.getBody().doOnNext(dataBuffer -> {
             try {
                 ByteArrayOutputStream bodyStream = new ByteArrayOutputStream();
                 Channels.newChannel(bodyStream).write(dataBuffer.asByteBuffer().asReadOnlyBuffer());
                 bodyString = new String(bodyStream.toByteArray());
+                if (bodyCapture != null) {
+                    bodyCapture.setBodyString(bodyString);  // Capture response body
+                }
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         });
+    }
+    
+    public String getBodyString() {
+        return bodyString;
     }
 }

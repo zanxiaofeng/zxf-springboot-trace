@@ -1,20 +1,11 @@
 package zxf.trace.support.rest;
 
-import org.springframework.boot.autoconfigure.web.WebProperties;
-import org.springframework.boot.autoconfigure.web.reactive.error.AbstractErrorWebExceptionHandler;
-import org.springframework.boot.web.reactive.error.ErrorAttributes;
-import org.springframework.context.ApplicationContext;
-import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.codec.ServerCodecConfigurer;
-import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.BodyInserters;
-import org.springframework.web.reactive.function.server.*;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * 全局异常处理器 - WebFlux版本
@@ -22,68 +13,61 @@ import java.util.Map;
  * 处理应用程序中抛出的所有异常，并将它们转换为适当的HTTP响应。
  * 这个处理器适用于整个应用程序，不仅限于特定包。
  */
-@Component
-@Order(-2) // 高优先级，确保在默认错误处理器之前执行
-public class GlobalExceptionHandler extends AbstractErrorWebExceptionHandler {
+@ControllerAdvice
+public class GlobalExceptionHandler {
 
     /**
-     * 构造函数
+     * 处理所有未捕获的异常
      *
-     * @param errorAttributes 错误属性
-     * @param webProperties Web属性
-     * @param applicationContext 应用程序上下文
-     * @param serverCodecConfigurer 服务器编解码器配置器
+     * @param ex 抛出的异常
+     * @param exchange 当前Web交换
+     * @return 包含错误详情的ResponseEntity
      */
-    public GlobalExceptionHandler(
-            ErrorAttributes errorAttributes,
-            WebProperties.Resources resources,
-            ApplicationContext applicationContext,
-            ServerCodecConfigurer serverCodecConfigurer) {
-        super(errorAttributes, resources, applicationContext);
-        this.setMessageReaders(serverCodecConfigurer.getReaders());
-        this.setMessageWriters(serverCodecConfigurer.getWriters());
+    @ExceptionHandler(Exception.class)
+    public Mono<ResponseEntity<ErrorResponse>> handleAllExceptions(Exception ex, ServerWebExchange exchange) {
+        return Mono.just(new ResponseEntity<>(new ErrorResponse("SERVER_ERROR", ex.getMessage()),
+                HttpStatus.INTERNAL_SERVER_ERROR));
     }
 
     /**
-     * 配置路由规则
+     * 处理参数验证相关的异常
      *
-     * @param routes 路由函数构建器
-     * @return 路由函数
+     * @param ex 抛出的运行时异常
+     * @param exchange 当前Web交换
+     * @return 包含错误详情的ResponseEntity
      */
-    @Override
-    protected RouterFunction<ServerResponse> getRoutingFunction(ErrorAttributes errorAttributes) {
-        return RouterFunctions.route(RequestPredicates.all(), this::renderErrorResponse);
+    @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
+    public Mono<ResponseEntity<ErrorResponse>> handleBadRequest(RuntimeException ex, ServerWebExchange exchange) {
+        return Mono.just(new ResponseEntity<>(new ErrorResponse("BAD_REQUEST", ex.getMessage()),
+                HttpStatus.BAD_REQUEST));
     }
 
     /**
-     * 渲染错误响应
+     * 处理资源未找到异常
      *
-     * @param request 服务器请求
-     * @return 服务器响应
+     * @param ex 抛出的异常
+     * @param exchange 当前Web交换
+     * @return 包含错误详情的ResponseEntity
      */
-    private Mono<ServerResponse> renderErrorResponse(ServerRequest request) {
-        Throwable error = getError(request);
-        Map<String, Object> errorResponse = new HashMap<>();
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public Mono<ResponseEntity<ErrorResponse>> handleResourceNotFound(ResourceNotFoundException ex, ServerWebExchange exchange) {
+        return Mono.just(new ResponseEntity<>(new ErrorResponse("NOT_FOUND", ex.getMessage()),
+                HttpStatus.NOT_FOUND));
+    }
 
-        HttpStatus status;
-        String errorCode;
+    /**
+     * 错误响应数据结构
+     */
+    public static class ErrorResponse {
+        private String code;
+        private String message;
 
-        if (error instanceof ResourceNotFoundException) {
-            status = HttpStatus.NOT_FOUND;
-            errorCode = "NOT_FOUND";
-        } else if (error instanceof IllegalArgumentException || error instanceof IllegalStateException) {
-            status = HttpStatus.BAD_REQUEST;
-            errorCode = "BAD_REQUEST";
-        } else {
-            status = HttpStatus.INTERNAL_SERVER_ERROR;
-            errorCode = "SERVER_ERROR";
+        public ErrorResponse(String code, String message) {
+            this.code = code;
+            this.message = message;
         }
 
-        errorResponse.put("code", errorCode);
-        errorResponse.put("message", error.getMessage());
-
-        return ServerResponse.status(status)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(BodyInserters.fromValue(errorResponse));
+        public String getCode() { return code; }
+        public String getMessage() { return message; }
     }
 }
