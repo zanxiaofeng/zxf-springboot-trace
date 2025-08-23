@@ -40,7 +40,7 @@ public class OutboundLoggingInterceptor implements ClientHttpRequestInterceptor 
         Consumer<String> logger = response == null || response.getStatusCode().isError() ? log::error : log::info;
 
         logger.accept("=================================================Request begin(Outbound)=================================================");
-        logger.accept("URI             : " + request.getURI());
+        logger.accept("URL             : " + request.getURI());
         logger.accept("Methed          : " + request.getMethod());
         logger.accept("Headers         : " + formatHeaders(request.getHeaders()));
         logger.accept("Request Body    : " + readAndMaskJsonContent(request.getHeaders().getContentType(), body, StandardCharsets.UTF_8));
