@@ -1,0 +1,8 @@
+zxf/trace/app/control/TestController.class
+zxf/trace/support/trace/TraceConfiguration.class
+zxf/trace/support/rest/GlobalExceptionHandler$ErrorResponse.class
+zxf/trace/support/trace/InboundLoggingFilter.class
+zxf/trace/TraceApplication.class
+zxf/trace/support/trace/OutboundLoggingInterceptor.class
+zxf/trace/support/rest/GlobalExceptionHandler.class
+zxf/trace/support/trace/SensitiveDataHelper.class

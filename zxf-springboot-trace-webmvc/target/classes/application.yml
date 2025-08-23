@@ -1,0 +1,12 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: zxf-springboot-trace-webmvc
+
+logging:
+  level:
+    root: INFO
+    zxf.trace: DEBUG
+    org.springframework.web: INFO
