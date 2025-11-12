@@ -1,0 +1,10 @@
+trace:
+  sensitive-mask:
+    headers:
+      - Token
+      - Authorization
+      - Cookie
+      - Set-Cookie
+    json-names:
+      - email
+      - token

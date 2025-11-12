@@ -17,6 +17,7 @@
     <packaging>pom</packaging>
 
     <modules>
+        <module>zxf-springboot-trace-common</module>
         <module>zxf-springboot-trace-webmvc</module>
         <module>zxf-springboot-trace-webflux</module>
     </modules>
