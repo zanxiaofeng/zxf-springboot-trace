@@ -1,4 +1,8 @@
 trace:
+  mdc-injection:
+    enable: true
+    key: ReqId
+    header: X-Request-Id
   sensitive-mask:
     headers:
       - Token

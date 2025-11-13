@@ -5,12 +5,14 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingRequestWrapper;
 import org.springframework.web.util.ContentCachingResponseWrapper;
+import zxf.trace.mdc.MDCHelper;
 import zxf.trace.sensitive.SensitiveDataHelper;
 
 import java.io.IOException;
@@ -24,8 +26,9 @@ import java.util.stream.Collectors;
 @Component
 public class InboundLoggingFilter extends OncePerRequestFilter {
     @Autowired
+    private MDCHelper mdcHelper;
+    @Autowired
     private SensitiveDataHelper sensitiveDataHelper;
-
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
@@ -33,10 +36,12 @@ public class InboundLoggingFilter extends OncePerRequestFilter {
         ContentCachingResponseWrapper responseWrapper = new ContentCachingResponseWrapper(response);
 
         try {
+            mdcHelper.inject(request);
             filterChain.doFilter(requestWrapper, responseWrapper);
         } finally {
             logRequestAndResponse(requestWrapper, responseWrapper);
             responseWrapper.copyBodyToResponse();
+            mdcHelper.clean();
         }
     }
 
@@ -51,7 +56,7 @@ public class InboundLoggingFilter extends OncePerRequestFilter {
 
             Consumer<String> logger = isError ? log::error : log::info;
             logger.accept("=================================================Request begin(Inbound)=================================================");
-            logger.accept(String.format("URL             : %s?%s", request.getRequestURI(), request.getQueryString()));
+            logger.accept(String.format("URL             : %s?%s", request.getRequestURI(), StringUtils.defaultIfEmpty(request.getQueryString(), "")));
             logger.accept(String.format("Method          : %s", request.getMethod()));
             logger.accept(String.format("Headers         : %s", formatHeaders(Collections.list(request.getHeaderNames()), request::getHeader)));
             logger.accept(String.format("Request Body    : %s", readAndMaskJsonContent(request.getContentType(), request.getContentAsByteArray(), request.getCharacterEncoding())));
@@ -79,7 +84,7 @@ public class InboundLoggingFilter extends OncePerRequestFilter {
     private String readAndMaskJsonContent(String contentType, byte[] contentBytes, String encoding) {
         try {
             String contentString = new String(contentBytes, encoding);
-            if (contentString.isEmpty() || !contentType.contains("json")) {
+            if (StringUtils.isEmpty(contentString) || !StringUtils.containsIgnoreCase(contentType, "json")) {
                 return contentString;
             }
             return sensitiveDataHelper.maskSensitiveDataFromJson(contentString);

@@ -1,6 +1,7 @@
 package zxf.trace;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRequest;
@@ -85,7 +86,7 @@ public class OutboundLoggingInterceptor implements ClientHttpRequestInterceptor 
     private String readAndMaskJsonContent(MediaType mediaType, byte[] contentBytes, Charset charset) {
         try {
             String contentString = new String(contentBytes, charset);
-            if (contentString.isEmpty() || !MediaType.APPLICATION_JSON.isCompatibleWith(mediaType)) {
+            if (StringUtils.isEmpty(contentString) || !MediaType.APPLICATION_JSON.isCompatibleWith(mediaType)) {
                 return contentString;
             }
             return sensitiveDataHelper.maskSensitiveDataFromJson(contentString);

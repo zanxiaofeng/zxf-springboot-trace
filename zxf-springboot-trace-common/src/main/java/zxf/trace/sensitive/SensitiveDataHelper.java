@@ -1,6 +1,7 @@
 package zxf.trace.sensitive;
 
 import dev.blaauwendraad.masker.json.JsonMasker;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -12,7 +13,7 @@ public class SensitiveDataHelper {
     private SensitiveConfiguration sensitiveConfiguration;
 
     public String maskSensitiveDataFromJson(String content) {
-        if (content == null || content.isEmpty()) {
+        if (StringUtils.isEmpty(content)) {
             return content;
         }
 
@@ -23,12 +24,12 @@ public class SensitiveDataHelper {
     }
 
     public Boolean isSensitiveHeader(String headerName) {
-        if (headerName == null || headerName.isEmpty()) {
+        if (StringUtils.isEmpty(headerName)) {
             return false;
         }
 
         for (String sensitiveHeader : sensitiveConfiguration.getHeaders()) {
-            if (headerName.equalsIgnoreCase(sensitiveHeader)) {
+            if (StringUtils.equalsIgnoreCase(headerName, sensitiveHeader)) {
                 return true;
             }
         }
