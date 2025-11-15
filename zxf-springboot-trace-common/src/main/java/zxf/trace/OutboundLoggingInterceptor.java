@@ -35,7 +35,6 @@ public class OutboundLoggingInterceptor implements ClientHttpRequestInterceptor 
             logRequestAndResponse(request, body, response.getStatusCode(), response.getHeaders(), StreamUtils.copyToByteArray(response.getBody()));
             return response;
         } catch (RestClientResponseException ex) {
-            log.error("Exception when send request", ex);
             logRequestAndResponse(request, body, ex.getStatusCode(), ex.getResponseHeaders(), ex.getResponseBodyAsByteArray());
             throw ex;
         } catch (Exception ex) {
